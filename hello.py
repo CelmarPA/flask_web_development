@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request, session
 
 app: Flask = Flask(__name__)
 
@@ -12,3 +12,9 @@ def index() -> str:
 def user(name: str) -> str:
     return f"<h1>Hello {name}</h1>"
 
+
+@app.route("/browser")
+def browser() -> str:
+    user_agent: str = request.headers.get("User-Agent")
+
+    return f"<p>Your browser is {user_agent}</p>"
