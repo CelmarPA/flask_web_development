@@ -2,6 +2,7 @@ from flask import Flask, request, render_template
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from datetime import datetime, UTC
+from typing import Tuple
 
 
 app: Flask = Flask(__name__)
@@ -27,10 +28,10 @@ def browser() -> str:
 
 
 @app.errorhandler(404)
-def page_not_found(e):
+def page_not_found(e: Exception) -> Tuple[str, int]:
     return render_template("404.html"), 404
 
 
 @app.errorhandler(500)
-def internal_server_error(e):
+def internal_server_error(e: Exception) -> Tuple[str, int]:
     return render_template("500.html"), 500
