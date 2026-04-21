@@ -3,16 +3,34 @@ from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from datetime import datetime, UTC
 from typing import Tuple
+from secrets import token_hex
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField
+from wtforms.validators import DataRequired
 
 
 app: Flask = Flask(__name__)
+app.config["SECRET_KEY"] = token_hex(32)
+
 bootstrap: Bootstrap = Bootstrap(app)
 moment: Moment = Moment(app)
 
 
-@app.route("/")
+class NameForm(FlaskForm):
+    name: StringField = StringField("What is your name?", validators=[DataRequired()])
+    submit: SubmitField = SubmitField("Submit")
+
+
+@app.route("/", methods=["GET", "POST"])
 def index() -> str:
-    return render_template("index.html", current_time=datetime.now(UTC))
+    name: None | str = None
+    form: NameForm = NameForm()
+
+    if form.validate_on_submit():
+        name = form.name.data
+        form.name.data = ""
+
+    return render_template("index.html", form=form, name=name, current_time=datetime.now(UTC))
 
 
 @app.route("/user/<name>")
