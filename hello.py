@@ -2,6 +2,7 @@ from flask import Flask, request, render_template, session, redirect, url_for, f
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DynamicMapped
 from datetime import datetime, UTC
@@ -23,6 +24,8 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"]: bool = False
 bootstrap: Bootstrap = Bootstrap(app)
 moment: Moment = Moment(app)
 db: SQLAlchemy = SQLAlchemy(app)
+
+migrate: Migrate = Migrate(app, db)
 
 
 class NameForm(FlaskForm):
