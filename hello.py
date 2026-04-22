@@ -1,24 +1,58 @@
 from flask import Flask, request, render_template, session, redirect, url_for, flash
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime, UTC
 from typing import Tuple
 from secrets import token_hex
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
+import os
 
+
+basedir: str = os.path.abspath(os.path.dirname(__file__))
 
 app: Flask = Flask(__name__)
-app.config["SECRET_KEY"] = token_hex(32)
+app.config["SECRET_KEY"]: str = token_hex(32)
+app.config["SQLALCHEMY_DATABASE_URI"]: str = f"sqlite:///{os.path.join(basedir, 'data.sqlite')}"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"]: bool = False
 
 bootstrap: Bootstrap = Bootstrap(app)
 moment: Moment = Moment(app)
+db: SQLAlchemy = SQLAlchemy(app)
 
 
 class NameForm(FlaskForm):
     name: StringField = StringField("What is your name?", validators=[DataRequired()])
     submit: SubmitField = SubmitField("Submit")
+
+
+class Role(db.Model):
+
+    __tablename__ = "roles"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(unique=True)
+
+    users: Mapped[list["User"]] = relationship(backref="role")
+
+    def __repr__(self):
+        return f"<Role {self.name!r}>"
+
+
+class User(db.Model):
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(unique=True, index=True)
+
+    role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"))
+
+    def __repr__(self):
+        return f"<User {self.username!r}>"
 
 
 @app.route("/", methods=["GET", "POST"])
