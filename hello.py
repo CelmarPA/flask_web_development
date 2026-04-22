@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, session, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from datetime import datetime, UTC
@@ -23,14 +23,15 @@ class NameForm(FlaskForm):
 
 @app.route("/", methods=["GET", "POST"])
 def index() -> str:
-    name: None | str = None
     form: NameForm = NameForm()
 
     if form.validate_on_submit():
-        name = form.name.data
-        form.name.data = ""
+        session["name"]: str = form.name.data
 
-    return render_template("index.html", form=form, name=name, current_time=datetime.now(UTC))
+        return redirect(url_for("index"))
+
+    return render_template("index.html", form=form, name=session.get("name"),
+                           current_time=datetime.now(UTC))
 
 
 @app.route("/user/<name>")
@@ -47,9 +48,11 @@ def browser() -> str:
 
 @app.errorhandler(404)
 def page_not_found(e: Exception) -> Tuple[str, int]:
+    _e: Exception = e
     return render_template("404.html"), 404
 
 
 @app.errorhandler(500)
 def internal_server_error(e: Exception) -> Tuple[str, int]:
+    _e: Exception = e
     return render_template("500.html"), 500
