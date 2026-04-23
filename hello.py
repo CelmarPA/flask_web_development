@@ -12,6 +12,7 @@ from secrets import token_hex
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
+from threading import Thread
 import os
 
 
@@ -38,16 +39,6 @@ db: SQLAlchemy = SQLAlchemy(app)
 
 migrate: Migrate = Migrate(app, db)
 mail: Mail = Mail(app)
-
-
-def send_email(to: str, subject: str, template: str, **kwargs) -> None:
-    msg: Message = Message(app.config["FLASKY_MAIL_SUBJECT_PREFIX"] + subject,
-                           sender=app.config["FLASKY_EMAIL_SENDER"], recipients=[to])
-
-    msg.body = render_template(template + ".txt", **kwargs)
-    msg.html = render_template(template + ".html", **kwargs)
-
-    mail.send(msg)
 
 
 class NameForm(FlaskForm):
@@ -78,6 +69,24 @@ class User(db.Model):
 
     def __repr__(self):
         return f"<User {self.username!r}>"
+
+
+def send_async_email(app, msg):
+    with app.app_context():
+        mail.send(msg)
+
+
+
+def send_email(to: str, subject: str, template: str, **kwargs) -> None:
+    msg: Message = Message(app.config["FLASKY_MAIL_SUBJECT_PREFIX"] + subject,
+                           sender=app.config["FLASKY_EMAIL_SENDER"], recipients=[to])
+
+    msg.body = render_template(template + ".txt", **kwargs)
+    msg.html = render_template(template + ".html", **kwargs)
+
+    thr: Thread = Thread(target=send_async_email, args=[app, msg])
+    thr.start()
+    return thr
 
 
 @app.shell_context_processor
