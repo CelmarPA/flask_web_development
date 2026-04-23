@@ -3,6 +3,7 @@ from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_mail import Mail, Message
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DynamicMapped
 from datetime import datetime, UTC
@@ -17,15 +18,36 @@ import os
 basedir: str = os.path.abspath(os.path.dirname(__file__))
 
 app: Flask = Flask(__name__)
-app.config["SECRET_KEY"]: str = token_hex(32)
-app.config["SQLALCHEMY_DATABASE_URI"]: str = f"sqlite:///{os.path.join(basedir, 'data.sqlite')}"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"]: bool = False
+app.config["SECRET_KEY"]= token_hex(32)
+app.config["SQLALCHEMY_DATABASE_URI"]= f"sqlite:///{os.path.join(basedir, 'data.sqlite')}"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+app.config["MAIL_SERVER"] = "smtp.googlemail.com"
+app.config["MAIL_PORT"] = 587
+app.config["MAIL_USE_TLS"] = True
+app.config["FLASKY_ADMIN"] = os.environ.get("FLASKY_ADMIN")
+app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
+app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME')
+app.config["FLASKY_MAIL_SUBJECT_PREFIX"] = "[Flasky]"
+app.config["FLASKY_EMAIL_SENDER"] = "Flasky Admin <flasky@example.com>"
 
 bootstrap: Bootstrap = Bootstrap(app)
 moment: Moment = Moment(app)
 db: SQLAlchemy = SQLAlchemy(app)
 
 migrate: Migrate = Migrate(app, db)
+mail: Mail = Mail(app)
+
+
+def send_email(to: str, subject: str, template: str, **kwargs) -> None:
+    msg: Message = Message(app.config["FLASKY_MAIL_SUBJECT_PREFIX"] + subject,
+                           sender=app.config["FLASKY_EMAIL_SENDER"], recipients=[to])
+
+    msg.body = render_template(template + ".txt", **kwargs)
+    msg.html = render_template(template + ".html", **kwargs)
+
+    mail.send(msg)
 
 
 class NameForm(FlaskForm):
@@ -69,12 +91,15 @@ def index() -> str:
 
     if form.validate_on_submit():
         user: str = User.query.filter_by(username=form.name.data).first()
-        print(user)
+
         if user is None:
             user: User = User(username=form.name.data)
             db.session.add(user)
             db.session.commit()
             session["known"] = False
+
+            if app.config["FLASKY_ADMIN"]:
+                send_email(app.config["FLASKY_ADMIN"], "New User", "mail/new_user", user=user)
 
         else:
             session["known"] = True
