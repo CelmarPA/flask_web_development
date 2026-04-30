@@ -7,13 +7,15 @@ from flask_mail import Mail
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 from flask_web_development.config import config
+from flask_login import LoginManager
 
 
 bootstrap: Bootstrap = Bootstrap()
 mail: Mail = Mail()
 moment: Moment = Moment()
+login_manager: LoginManager = LoginManager()
+login_manager.login_view = "auth.login"
 db: SQLAlchemy = SQLAlchemy()
-
 
 def create_app(config_name: str = "default") -> Flask:
     app: Flask = Flask(__name__)
@@ -24,7 +26,9 @@ def create_app(config_name: str = "default") -> Flask:
     bootstrap.init_app(app)
     mail.init_app(app)
     moment.init_app(app)
+    login_manager.init_app(app)
     db.init_app(app)
+
 
     from .main import main
     app.register_blueprint(main)

@@ -1,4 +1,4 @@
-from . import db
+from . import db, login_manager
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DynamicMapped
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -22,11 +22,11 @@ class User(db.Model):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(unique=True, index=True)
     username: Mapped[str] = mapped_column(unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(nullable=False)
 
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"), nullable=True)
-
-    password_hash: Mapped[str] = mapped_column(nullable=False)
 
     def __repr__(self) -> str:
         return f"<User {self.username!r}>"
@@ -41,3 +41,8 @@ class User(db.Model):
 
     def verify_password(self, password) -> None:
         return check_password_hash(self.password_hash, password)
+
+
+@login_manager.user_loader
+def load_user(user_id) -> User |  None:
+    return User.query.get(int(user_id))
