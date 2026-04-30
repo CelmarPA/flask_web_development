@@ -44,4 +44,7 @@ def create_app(config_name: str = "default") -> Flask:
 
         unittest.TextTestRunner(verbosity=2).run(tests)
 
+    from .auth import auth as auth_blueprint
+    app.register_blueprint(auth_blueprint, url_prefix="/auth")
+
     return app
