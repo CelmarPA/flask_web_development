@@ -3,6 +3,9 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DynamicMapped
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
+from itsdangerous import URLSafeTimedSerializer as Serializer
+from flask import current_app
+
 
 
 class Role(db.Model):
@@ -29,6 +32,8 @@ class User(UserMixin, db.Model):
 
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"), nullable=True)
 
+    confirmed: Mapped[bool] = mapped_column(default=False)
+
     def __repr__(self) -> str:
         return f"<User {self.username!r}>"
 
@@ -42,6 +47,29 @@ class User(UserMixin, db.Model):
 
     def verify_password(self, password) -> bool:
         return check_password_hash(self.password_hash, password)
+
+    def generate_confirmation_token(self):
+        s = Serializer(current_app.config["SECRET_KEY"])
+
+        return s.dumps({"confirm": self.id})
+
+    def confirm(self, token, expiration=3600):
+        s = Serializer(current_app.config["SECRET_KEY"])
+
+        try:
+            data = s.loads(token, max_age=expiration)
+
+        except Exception as e:
+            _e = e
+            return False
+
+        if data.get("confirm") != self.id:
+            return False
+
+        self.confirmed = True
+        db.session.add(self)
+
+        return True
 
 
 @login_manager.user_loader
