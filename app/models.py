@@ -2,6 +2,7 @@ from . import db, login_manager
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DynamicMapped
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
 
 
 class Role(db.Model):
@@ -17,7 +18,7 @@ class Role(db.Model):
         return f"<Role {self.name!r}>"
 
 
-class User(db.Model):
+class User(UserMixin, db.Model):
 
     __tablename__ = "users"
 
@@ -39,10 +40,10 @@ class User(db.Model):
     def password(self, password) -> None:
         self.password_hash = generate_password_hash(password)
 
-    def verify_password(self, password) -> None:
+    def verify_password(self, password) -> bool:
         return check_password_hash(self.password_hash, password)
 
 
 @login_manager.user_loader
 def load_user(user_id) -> User |  None:
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
