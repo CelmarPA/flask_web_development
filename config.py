@@ -1,8 +1,12 @@
 # config.py
 
+import os
 from secrets import token_hex
 from typing import Dict, Type
-import os
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 basedir: str = os.path.abspath(os.path.dirname(__file__))
 
