@@ -1,10 +1,11 @@
 from . import db, login_manager
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, Text, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DynamicMapped
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin, AnonymousUserMixin
 from itsdangerous import URLSafeTimedSerializer as Serializer
 from flask import current_app
+from datetime import datetime, UTC
 
 
 class Permission:
@@ -83,13 +84,16 @@ class User(UserMixin, db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(unique=True, index=True)
     username: Mapped[str] = mapped_column(unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(nullable=False)
-
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"), nullable=True)
-
+    password_hash: Mapped[str] = mapped_column(nullable=False)
     confirmed: Mapped[bool] = mapped_column(default=False)
+    name: Mapped[str | None] = mapped_column()
+    location: Mapped[str | None] = mapped_column()
+    about_me: Mapped[str | None] = mapped_column(Text)
+    member_since: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
         if self.role is None:
@@ -110,12 +114,12 @@ class User(UserMixin, db.Model):
     def verify_password(self, password) -> bool:
         return check_password_hash(self.password_hash, password)
 
-    def generate_confirmation_token(self):
+    def generate_confirmation_token(self) -> str:
         s = Serializer(current_app.config["SECRET_KEY"])
 
         return s.dumps({"confirm": self.id})
 
-    def confirm(self, token, expiration=3600):
+    def confirm(self, token, expiration=3600) -> bool:
         s = Serializer(current_app.config["SECRET_KEY"])
 
         try:
@@ -133,13 +137,13 @@ class User(UserMixin, db.Model):
 
         return True
 
-    def generate_reset_token(self):
+    def generate_reset_token(self) -> str:
         s = Serializer(current_app.config["SECRET_KEY"])
 
         return s.dumps({"reset": self.id})
 
     @staticmethod
-    def reset_password(token: str, new_password: str, expiration=3600):
+    def reset_password(token: str, new_password: str, expiration=3600) -> bool:
         s = Serializer(current_app.config["SECRET_KEY"])
 
         try:
@@ -159,12 +163,12 @@ class User(UserMixin, db.Model):
 
         return True
 
-    def generate_email_change_token(self, new_email: str):
+    def generate_email_change_token(self, new_email: str) -> str:
         s = Serializer(current_app.config["SECRET_KEY"])
 
         return s.dumps({"change_email": self.id, "new_email": new_email})
 
-    def change_email(self, token: str, expiration=3600):
+    def change_email(self, token: str, expiration=3600) -> bool:
         s = Serializer(current_app.config["SECRET_KEY"])
 
         try:
@@ -190,11 +194,16 @@ class User(UserMixin, db.Model):
 
         return True
 
-    def can(self, perm: int):
+    def can(self, perm: int) -> bool:
         return self.role is not None and self.role.has_permission(perm)
 
-    def is_administrator(self):
+    def is_administrator(self) -> bool:
         return self.can(Permission.ADMIN)
+
+    def ping(self) -> None:
+        self.last_seen = datetime.now(UTC)
+        db.session.add(self)
+        db.session.commit()
 
     def __repr__(self) -> str:
         return f"<User {self.username!r}>"

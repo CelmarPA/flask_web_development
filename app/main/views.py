@@ -10,27 +10,11 @@ from ..email import send_email
 
 @main.route("/", methods=["GET", "POST"])
 def index():
-    form: NameForm = NameForm()
+    return render_template('index.html')
 
-    if form.validate_on_submit():
-        user: User = User.query.filter_by(username=form.name.data).first()
 
-        if user is None:
-            user: User = User(username=form.name.data)
+@main.route("/user/<username>")
+def user(username: str):
+    user: User = User.query.filter_by(username=username).first_or_404()
 
-            db.session.add(user)
-            db.session.commit()
-            session["known"] = False
-
-            if current_app.config["FLASKY_ADMIN"]:
-                send_email(current_app.config["FLASK_ADMIN"], "New User", "mail/new_user", user=user)
-
-        else:
-            session["known"] = True
-
-        session["name"] = form.name.data
-
-        return redirect(url_for(".index"))
-
-    return render_template("index.html", form=form, name=session.get("name"),
-                           known=session.get("known", False), current_time=datetime.now(UTC))
+    return render_template("user.html", user=user)
