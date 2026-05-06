@@ -93,6 +93,7 @@ class User(UserMixin, db.Model):
     about_me: Mapped[str | None] = mapped_column(Text)
     member_since: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    avatar_hash: Mapped[str | None] = mapped_column()
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -103,6 +104,9 @@ class User(UserMixin, db.Model):
 
             if self.role is None:
                 self.role = Role.query.filter_by(default=True).first()
+
+        if self.email is not None and self.avatar_hash is None:
+            self.avatar_hash = self.gravatar_hash()
 
     @property
     def password(self) -> None:
@@ -191,6 +195,7 @@ class User(UserMixin, db.Model):
             return False
 
         self.email = new_email
+        self.avatar_hash = self.gravatar_hash()
         db.session.add(self)
 
         return True
@@ -206,9 +211,12 @@ class User(UserMixin, db.Model):
         db.session.add(self)
         db.session.commit()
 
+    def gravatar_hash(self) -> str:
+        return hashlib.md5(self.email.lower().encode("utf-8")).hexdigest()
+
     def gravatar(self, size: int = 100, default: str = "identicon", rating: str = "g") -> str:
         url: str = "https://secure.gravatar.com/avatar"
-        hash_avatar: str = hashlib.md5(self.email.lower().encode("utf-8")).hexdigest()
+        hash_avatar: str = self.avatar_hash or self.gravatar_hash()
 
         return f"{url}/{hash_avatar}?s={size}&d={default}&r={rating}'."
 
