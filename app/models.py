@@ -1,10 +1,11 @@
+import hashlib
 from . import db, login_manager
 from sqlalchemy import ForeignKey, Text, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DynamicMapped
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin, AnonymousUserMixin
 from itsdangerous import URLSafeTimedSerializer as Serializer
-from flask import current_app
+from flask import current_app, request
 from datetime import datetime, UTC
 
 
@@ -204,6 +205,12 @@ class User(UserMixin, db.Model):
         self.last_seen = datetime.now(UTC)
         db.session.add(self)
         db.session.commit()
+
+    def gravatar(self, size: int = 100, default: str = "identicon", rating: str = "g") -> str:
+        url: str = "https://secure.gravatar.com/avatar"
+        hash_avatar: str = hashlib.md5(self.email.lower().encode("utf-8")).hexdigest()
+
+        return f"{url}/{hash_avatar}?s={size}&d={default}&r={rating}'."
 
     def __repr__(self) -> str:
         return f"<User {self.username!r}>"
