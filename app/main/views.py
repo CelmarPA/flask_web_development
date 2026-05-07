@@ -1,5 +1,4 @@
-from dominate.tags import body
-from flask import render_template, redirect, url_for, flash
+from flask import render_template, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from . import main
 from .forms import EditProfileForm, EditProfileAdminForm, PostForm
@@ -27,9 +26,14 @@ def index():
 
 @main.route("/user/<username>")
 def user(username: str):
-    user: User = User.query.filter_by(username=username).first_or_404()
+    user: User = User.query.filter_by(username=username).first()
 
-    return render_template("user.html", user=user)
+    if user is None:
+        abort(404)
+
+    posts =  user.posts.order_by(Post.timestamp.desc()).all()
+
+    return render_template("user.html", user=user, posts=posts)
 
 
 @main.route("/edit-profile", methods=["GET", "POST"])
