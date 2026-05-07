@@ -94,6 +94,7 @@ class User(UserMixin, db.Model):
     member_since: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     avatar_hash: Mapped[str | None] = mapped_column()
+    posts: DynamicMapped["Post"] = relationship(back_populates="author", lazy="dynamic")
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -238,3 +239,14 @@ login_manager.anonymous_user = AnonymousUser
 @login_manager.user_loader
 def load_user(user_id) -> User |  None:
     return db.session.get(User, int(user_id))
+
+
+class Post(db.Model):
+
+    __tablename__ = "posts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    body: Mapped[str | None] = mapped_column(Text)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, index=True, default=lambda: datetime.now(UTC))
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    author: Mapped["User"] = relationship(back_populates="posts")
