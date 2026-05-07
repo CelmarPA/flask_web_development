@@ -1,12 +1,14 @@
 import hashlib
+import bleach
 from . import db, login_manager
 from sqlalchemy import ForeignKey, Text, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DynamicMapped
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin, AnonymousUserMixin
 from itsdangerous import URLSafeTimedSerializer as Serializer
-from flask import current_app, request
+from flask import current_app
 from datetime import datetime, UTC
+from markdown import markdown
 
 
 class Permission:
@@ -247,6 +249,21 @@ class Post(db.Model):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     body: Mapped[str | None] = mapped_column(Text)
+    body_html: Mapped[str | None] = mapped_column(Text)
     timestamp: Mapped[datetime] = mapped_column(DateTime, index=True, default=lambda: datetime.now(UTC))
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     author: Mapped["User"] = relationship(back_populates="posts")
+
+    @staticmethod
+    def on_changed_body(target, value, old_value, initiator) -> None:
+        allowed_tags: list[str] = [
+            "a", "abbr", "acronym", "b", "blockquote", "code",
+            "em", "i", "li", "ol", "pre", "strong", "ul",
+            "h1", "h2", "h3", "p"
+        ]
+
+        target.body_html = bleach.linkify(bleach.clean(
+            markdown(value, output_format="html"),
+            tags=allowed_tags, strip=True))
+
+db.event.listen(Post.body, "set", Post.on_changed_body)

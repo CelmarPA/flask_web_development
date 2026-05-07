@@ -9,6 +9,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_web_development.config import config
 from flask_login import LoginManager
 from flask_migrate import Migrate
+from flask_pagedown import PageDown
 
 
 bootstrap: Bootstrap = Bootstrap()
@@ -18,6 +19,7 @@ login_manager: LoginManager = LoginManager()
 login_manager.login_view = "auth.login"
 db: SQLAlchemy = SQLAlchemy()
 migrate: Migrate = Migrate()
+pagedown: PageDown = PageDown()
 
 def create_app(config_name: str = "default") -> Flask:
     app: Flask = Flask(__name__)
@@ -31,7 +33,7 @@ def create_app(config_name: str = "default") -> Flask:
     login_manager.init_app(app)
     db.init_app(app)
     migrate.init_app(app, db)
-
+    pagedown.init_app(app)
 
     from .main import main
     app.register_blueprint(main)
