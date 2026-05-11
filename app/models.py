@@ -80,6 +80,32 @@ class Role(db.Model):
         return '<Role %r>' % self.name
 
 
+class Follow(db.Model):
+
+    __tablename__ = "follows"
+
+    follower_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    followed_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        index=True,
+        default=lambda: datetime.now(UTC)
+    )
+
+    follower: Mapped["User"] = relationship(
+        foreign_keys=[follower_id],
+        back_populates="followed",
+        lazy="joined"
+    )
+
+    followed: Mapped["User"] = relationship(
+        foreign_keys=[follower_id],
+        back_populates="followers",
+        lazy="joined"
+    )
+
+
 class User(UserMixin, db.Model):
 
     __tablename__ = "users"
@@ -97,6 +123,20 @@ class User(UserMixin, db.Model):
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     avatar_hash: Mapped[str | None] = mapped_column()
     posts: DynamicMapped["Post"] = relationship(back_populates="author", lazy="dynamic")
+
+    followed: DynamicMapped["Follow"] = relationship(
+        foreign_keys="Follow.follower_id",
+        back_populates="follower",
+        lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
+
+    followers: DynamicMapped["Follow"] = relationship(
+        foreign_keys="Follow.followed_id",
+        back_populates="followed",
+        lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -223,6 +263,29 @@ class User(UserMixin, db.Model):
 
         return f"{url}/{hash_avatar}?s={size}&d={default}&r={rating}'."
 
+    def follow(self, user: User) -> None:
+        if not self.following(user):
+            f: Follow = Follow(followed=user)
+            self.followed.append(f)
+
+    def unfollow(self, user: User) -> None:
+        f: Follow = self.followed.filter_by(followed_id=user.id).first()
+
+        if f:
+            self.followed.remove(f)
+
+    def is_following(self, user: User) -> bool:
+        if user.id is None:
+            return False
+
+        return self.followed.filter_by(followed_id=user.id).first() is not None
+
+    def is_followed_by(self, user: User) -> bool:
+        if user.id is None:
+            return False
+
+        return self.followers.filter_by(follower_id=user.id).first() is not None
+
     def __repr__(self) -> str:
         return f"<User {self.username!r}>"
 
@@ -250,7 +313,7 @@ class Post(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     body: Mapped[str | None] = mapped_column(Text)
     body_html: Mapped[str | None] = mapped_column(Text)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, index=True, default=lambda: datetime.now(UTC))
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True, default=lambda: datetime.now(UTC))
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     author: Mapped["User"] = relationship(back_populates="posts")
 
